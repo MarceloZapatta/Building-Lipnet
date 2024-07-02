@@ -73,17 +73,17 @@ if os.path.exists('./data') == False:
 
 
 # All caracters that we are going to use
-vocab = [x for x in "abcdefghijklmnopqrstuvwxyz'?123456789"]
+vocab = [x for x in "abcdefghijklmnopqrstuvwxyz'?123456789 "]
 
 char_to_num = tf.keras.layers.StringLookup(vocabulary=vocab, oov_token="")
 num_to_char = tf.keras.layers.StringLookup(
   vocabulary=char_to_num.get_vocabulary(), oov_token="", invert=True
 )
 
-print(
-  f"The vocabulary is: {char_to_num.get_vocabulary()}"
-  f"(size = {char_to_num.vocabulary_size()})"
-)
+# print(
+#   f"The vocabulary is: {char_to_num.get_vocabulary()}"
+#   f"(size = {char_to_num.vocabulary_size()})"
+# )
 
 test_path = './data/s1/bbal6n.mpg'
 tf.convert_to_tensor(test_path).numpy().decode('utf-8').split('/')[-1].split('.')[0]
@@ -93,5 +93,40 @@ plt.figure(figsize=(10,10))
 test = plt.imshow(frames[40])
 plt.savefig('test.png')
 
-print(tf.strings.reduce_join([bytes.decode(x) for x in num_to_char(alignments.numpy()).numpy()]))
+# print(tf.strings.reduce_join([bytes.decode(x) for x in num_to_char(alignments.numpy()).numpy()]))
 
+# Creating data pipeline
+
+data = tf.data.Dataset.list_files('./data/s1/*.mpg')
+print(data)
+
+# return each file path
+# data.as_numpy_iterator().next() 
+
+data = data.shuffle(500)
+data = data.map(mappable_function)
+
+# Fill with 75 frames and 40 positions with 0 pad, why do this?
+data = data.padded_batch(2, padded_shapes=([75,None,None,None],[40]))
+data = data.prefetch(tf.data.AUTOTUNE)
+
+test = data.as_numpy_iterator()
+val = test.next()
+print(val[0][1])
+
+frames_to_save = (val[0][1] * 255).astype(np.uint8)
+
+# Remova qualquer dimensão extra
+frames_to_save = frames_to_save.squeeze()
+
+# Verifique o tipo de dados e a forma
+print(f"Shape: {frames_to_save.shape}, Dtype: {frames_to_save.dtype}")
+
+imageio.mimsave('./animation.gif', frames_to_save, fps=10)
+
+# 0: videos, 0: first video, 0: first frame
+# plt.imshow(val[0][0][0])
+# plt.savefig('test.png')
+# plt.show()
+
+print(tf.strings.reduce_join([num_to_char(word) for word in val[1][0]]), 'estou aq')
